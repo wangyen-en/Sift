@@ -79,7 +79,7 @@ Canon (CR2/CR3) · Nikon (NEF/NRW) · Sony (ARW/SR2/SRF) · Fujifilm (RAF) · Ol
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 # 克隆项目
-git clone https://github.com/sankigan/Sift.git
+git clone https://github.com/wangyen-en/Sift.git
 cd Sift
 
 # 安装前端依赖

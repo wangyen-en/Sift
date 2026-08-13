@@ -16,7 +16,7 @@ const view = useViewStore()
 const version = __APP_VERSION__
 
 function openReleases() {
-  openUrl(`https://github.com/sankigan/Sift/releases/tag/v${version}`)
+  openUrl(`https://github.com/wangyen-en/Sift/releases/tag/v${version}`)
 }
 
 const isHovering = ref(false)
