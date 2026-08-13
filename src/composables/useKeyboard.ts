@@ -109,6 +109,14 @@ export function useKeyboard() {
         }
         break
 
+      case 'q':
+      case 'Q':
+        if (!isCtrlOrCmd) {
+          e.preventDefault()
+          view.toggleQualityPanel()
+        }
+        break
+
       case 'c':
       case 'C':
         if (!isCtrlOrCmd) {

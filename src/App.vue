@@ -16,6 +16,7 @@ const ToastNotification = defineAsyncComponent(() => import('@/components/action
 const StatusBar = defineAsyncComponent(() => import('@/components/status/StatusBar.vue'));
 const FilterGallery = defineAsyncComponent(() => import('@/components/status/FilterGallery.vue'));
 const ExifPanel = defineAsyncComponent(() => import('@/components/exif/ExifPanel.vue'));
+const QualityPanel = defineAsyncComponent(() => import('@/components/quality/QualityPanel.vue'));
 const SummaryCard = defineAsyncComponent(() => import('@/components/summary/SummaryCard.vue'));
 const ArchiveDialog = defineAsyncComponent(() => import('@/components/archive/ArchiveDialog.vue'));
 
@@ -81,6 +82,9 @@ watch(
 
           <!-- EXIF Panel -->
           <ExifPanel />
+
+          <!-- Quality Panel -->
+          <QualityPanel />
 
           <!-- Summary Card (shows when all photos reviewed) -->
           <SummaryCard />

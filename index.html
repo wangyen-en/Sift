@@ -16,6 +16,33 @@
   </head>
   <body>
     <div id="app"></div>
+    <script>
+      // ===== 诊断：捕获并显示 JS 错误（排查生产环境黑屏用，定位后删除）=====
+      (function () {
+        var el = null;
+        function show(msg) {
+          if (!el) {
+            el = document.createElement('pre');
+            el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#2a0000;color:#ff8f8f;padding:12px;font:12px/1.5 Consolas,monospace;white-space:pre-wrap;word-break:break-all;max-height:60vh;overflow:auto;';
+            document.body.appendChild(el);
+          }
+          el.textContent += msg + '\n';
+        }
+        window.addEventListener('error', function (e) {
+          if (e.target && e.target.tagName && e.target.tagName !== 'SCRIPT' && e.target.tagName !== 'LINK') {
+            return; // 忽略非资源/脚本错误
+          }
+          var src = (e.target && (e.target.src || e.target.href)) || e.filename || '';
+          var m = (e.target && e.target.src) ? ('资源加载失败: ' + src) : (e.message || 'unknown error');
+          show('[error] ' + m);
+          if (e.error && e.error.stack) show(e.error.stack);
+        }, true);
+        window.addEventListener('unhandledrejection', function (e) {
+          var r = e.reason;
+          show('[rejection] ' + (r && (r.stack || r.message) || r || 'unknown'));
+        });
+      })();
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

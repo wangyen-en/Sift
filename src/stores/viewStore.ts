@@ -11,6 +11,7 @@ import { PhotoStatus } from '@/types'
 export const useViewStore = defineStore('view', () => {
   const currentView = ref<AppView>('welcome')
   const showExifPanel = ref(false)
+  const showQualityPanel = ref(false)
   const showArchiveDialog = ref(false)
   const showSummaryCard = ref(false)
 
@@ -38,6 +39,10 @@ export const useViewStore = defineStore('view', () => {
 
   function toggleExifPanel() {
     showExifPanel.value = !showExifPanel.value
+  }
+
+  function toggleQualityPanel() {
+    showQualityPanel.value = !showQualityPanel.value
   }
 
   function toggleArchiveDialog() {
@@ -96,6 +101,7 @@ export const useViewStore = defineStore('view', () => {
   return {
     currentView,
     showExifPanel,
+    showQualityPanel,
     showArchiveDialog,
     showSummaryCard,
     zoomLevel,
@@ -110,6 +116,7 @@ export const useViewStore = defineStore('view', () => {
     filterCategory,
     setView,
     toggleExifPanel,
+    toggleQualityPanel,
     toggleArchiveDialog,
     resetZoom,
     rotateBy,

@@ -204,9 +204,13 @@ fn extract_via_jpeg_scan(raw_path: &str) -> Result<Vec<u8>, String> {
                 // Find the corresponding EOI marker: FF D9
                 if let Some(end) = find_jpeg_end(&data, start) {
                     let jpeg_len = end - start;
-                    if jpeg_len > best_size && jpeg_len >= MIN_PREVIEW_SIZE {
-                        best_jpeg = Some(data[start..end].to_vec());
-                        best_size = jpeg_len;
+                    if jpeg_len >= MIN_PREVIEW_SIZE && jpeg_len > best_size {
+                        let candidate = &data[start..end];
+                        // Skip lossless JPEG (SOF3) — that's RAW sensor data, not a preview
+                        if is_decodable_jpeg(candidate) {
+                            best_jpeg = Some(candidate.to_vec());
+                            best_size = jpeg_len;
+                        }
                     }
                     // Skip past this JPEG to find potentially larger ones
                     i = end;
@@ -235,6 +239,58 @@ fn is_valid_jpeg_marker(marker: u8) -> bool {
         | 0xE2..=0xEF // APP2-APP15
         | 0xFE // COM - Comment
     )
+}
+
+/// Find the SOF (Start Of Frame) marker byte of a JPEG stream.
+/// Returns the marker: 0xC0=baseline, 0xC1=extended, 0xC2=progressive, 0xC3=lossless, etc.
+fn find_jpeg_sof(jpeg: &[u8]) -> Option<u8> {
+    if jpeg.len() < 4 || jpeg[0] != 0xFF || jpeg[1] != 0xD8 {
+        return None;
+    }
+    let mut pos = 2;
+    while pos + 4 <= jpeg.len() {
+        if jpeg[pos] != 0xFF {
+            return None;
+        }
+        let marker = jpeg[pos + 1];
+
+        // EOI / SOS => no SOF in the header area
+        if marker == 0xD9 || marker == 0xDA {
+            return None;
+        }
+
+        // Standalone markers (no length field): RST0-7, SOI, TEM
+        if matches!(marker, 0xD0..=0xD7 | 0xD8 | 0x01) {
+            pos += 2;
+            continue;
+        }
+
+        // Fill byte (FF FF)
+        if marker == 0xFF {
+            pos += 1;
+            continue;
+        }
+
+        // SOF markers: C0-CF except C4 (DHT), C8 (JPG), CC (DAC)
+        if (0xC0..=0xCF).contains(&marker) && !matches!(marker, 0xC4 | 0xC8 | 0xCC) {
+            return Some(marker);
+        }
+
+        // All other markers carry a 2-byte length field
+        let seg_len = ((jpeg[pos + 2] as usize) << 8) | (jpeg[pos + 3] as usize);
+        if seg_len < 2 || pos + 2 + seg_len > jpeg.len() {
+            return None;
+        }
+        pos += 2 + seg_len;
+    }
+    None
+}
+
+/// Whether a JPEG stream is a decodable, lossy preview (baseline/extended/progressive).
+/// Lossless JPEG (SOF3, 0xC3) is RAW sensor data — the `image` crate and browsers
+/// cannot decode it, so it must be skipped when scanning for embedded previews.
+fn is_decodable_jpeg(jpeg: &[u8]) -> bool {
+    matches!(find_jpeg_sof(jpeg), Some(0xC0) | Some(0xC1) | Some(0xC2))
 }
 
 /// Find the end of a JPEG stream starting at `start`.

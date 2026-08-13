@@ -58,6 +58,17 @@ export interface ExifData {
   fileSize: number
 }
 
+/** Technical quality assessment (all scores 0-100, higher = better) */
+export interface QualityData {
+  sharpness: number
+  exposure: number
+  noise: number
+  overall: number
+  brightness: number
+  overexposedPct: number
+  underexposedPct: number
+}
+
 /** Archive operation result */
 export interface ArchiveResult {
   movedCount: number

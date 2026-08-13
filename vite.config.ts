@@ -6,17 +6,20 @@ import pkg from './package.json'
 const host = process.env.TAURI_DEV_HOST
 
 export default defineConfig(async () => ({
+  base: './',
   plugins: [vue()],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
   resolve: {
+    preserveSymlinks: true,
     alias: {
-      '@': resolve(__dirname, 'src'),
+      '@': resolve(process.cwd(), 'src'),
     },
   },
   clearScreen: false,
   server: {
+    fs: { strict: false },
     port: 1420,
     strictPort: true,
     host: host || false,

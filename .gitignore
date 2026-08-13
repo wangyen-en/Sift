@@ -25,3 +25,7 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# 本机临时文件（含绝对路径 / 本机 workaround，不提交）
+命令.txt
+src-tauri/.cargo/config.toml

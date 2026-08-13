@@ -20,11 +20,12 @@
         "resizable": true,
         "fullscreen": false,
         "decorations": true,
-        "transparent": false
+        "transparent": false,
+        "devtools": true
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost http://asset.localhost tauri: blob: data:; style-src 'self' 'unsafe-inline'",
+      "csp": null,
       "assetProtocol": {
         "enable": true,
         "scope": {
