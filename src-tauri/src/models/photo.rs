@@ -82,6 +82,26 @@ pub struct Dimensions {
     pub height: u32,
 }
 
+/// Technical quality assessment result (all scores are 0-100, higher = better)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QualityData {
+    /// Sharpness score (0-100, higher = sharper; low value indicates blur)
+    pub sharpness: f64,
+    /// Exposure balance score (0-100, higher = better balanced exposure)
+    pub exposure: f64,
+    /// Noise score (0-100, higher = cleaner / less noise)
+    pub noise: f64,
+    /// Weighted overall quality score (0-100)
+    pub overall: f64,
+    /// Mean luminance (0-255)
+    pub brightness: f64,
+    /// Percentage of clipped (overexposed) pixels (0-100)
+    pub overexposed_pct: f64,
+    /// Percentage of clipped (underexposed) pixels (0-100)
+    pub underexposed_pct: f64,
+}
+
 /// Archive operation result
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

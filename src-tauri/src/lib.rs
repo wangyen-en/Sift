@@ -7,7 +7,7 @@ mod commands;
 mod models;
 mod utils;
 
-use commands::{archive, cache, delete, export, file_actions, scan, thumbnail};
+use commands::{archive, cache, delete, export, file_actions, quality, scan, thumbnail};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -32,6 +32,7 @@ pub fn run() {
             file_actions::show_in_folder,
             file_actions::copy_image_to_clipboard,
             cache::cleanup_cache,
+            quality::analyze_quality,
             read_exif,
         ])
         .run(tauri::generate_context!())

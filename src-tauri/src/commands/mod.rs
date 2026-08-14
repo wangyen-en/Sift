@@ -5,3 +5,4 @@ pub mod export;
 pub mod thumbnail;
 pub mod file_actions;
 pub mod cache;
+pub mod quality;

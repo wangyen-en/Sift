@@ -4,7 +4,7 @@
 // ============================================================
 
 import { computed } from 'vue'
-import { ArrowLeft, Info, Archive } from 'lucide-vue-next'
+import { ArrowLeft, Info, Archive, Gauge } from 'lucide-vue-next'
 import { useSessionStore } from '@/stores/sessionStore'
 import { useViewStore } from '@/stores/viewStore'
 
@@ -105,6 +105,14 @@ function openArchive() {
         >
           {{ processedCount }}
         </span>
+      </button>
+      <button
+        class="p-1.5 rounded-lg transition-colors btn-spring"
+        :class="view.showQualityPanel ? 'bg-sift-accent/20 text-sift-accent' : 'hover:bg-white/10 text-sift-muted'"
+        title="质量评估 (Q)"
+        @click="view.toggleQualityPanel()"
+      >
+        <Gauge :size="16" />
       </button>
       <button
         class="p-1.5 rounded-lg transition-colors btn-spring"

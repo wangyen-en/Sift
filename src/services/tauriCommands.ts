@@ -12,6 +12,7 @@ import type {
   ArchiveProgress,
   ExportResult,
   PhotoSource,
+  QualityData,
 } from '@/types'
 
 /** Scan a folder for JPG+RAW pairs */
@@ -59,6 +60,11 @@ export async function readExif(
   source?: PhotoSource
 ): Promise<ExifData> {
   return invoke<ExifData>('read_exif', { jpgPath, rawPath, source })
+}
+
+/** Analyze technical quality of an image (sharpness / exposure / noise) */
+export async function analyzeQuality(jpgPath: string): Promise<QualityData> {
+  return invoke<QualityData>('analyze_quality', { jpgPath })
 }
 
 /** Listen for archive progress events */
