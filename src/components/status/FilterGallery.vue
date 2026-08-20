@@ -67,10 +67,18 @@ function getFileName(pair: { jpgPath: string; rawPath?: string | null; source?: 
 
 function handleSelect(originalIndex: number) {
   session.goTo(originalIndex);
-  view.closeFilterGallery();
+  closeGallery();
 }
 
 function handleBackdropClick() {
+  closeGallery();
+}
+
+/** 关闭筛选图库；若处于全屏则先退出全屏，恢复窗口标题栏（关闭/最小化/最大化） */
+function closeGallery() {
+  if (isFullscreen.value) {
+    exitFullscreen();
+  }
   view.closeFilterGallery();
 }
 
@@ -253,6 +261,10 @@ onBeforeUnmount(() => {
   window.removeEventListener('mousemove', onWindowMouseMove);
   window.removeEventListener('mouseup', onWindowMouseUp);
   window.removeEventListener('keydown', onWindowKeydown);
+  // 兜底：若卸载时仍处于全屏（如全屏时直接切回 welcome 界面），恢复窗口标题栏
+  if (isFullscreen.value) {
+    getCurrentWindow().setDecorations(true).catch(() => {});
+  }
 });
 </script>
 
@@ -352,7 +364,7 @@ onBeforeUnmount(() => {
           <button
             class="p-1.5 rounded-lg text-sift-muted hover:text-sift-text
                    hover:bg-white/5 transition-colors"
-            @click="view.closeFilterGallery()"
+            @click="closeGallery()"
           >
             <X :size="14" />
           </button>
