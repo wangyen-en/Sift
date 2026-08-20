@@ -56,6 +56,12 @@ export interface ExifData {
   dateTaken: string
   dimensions: { width: number; height: number }
   fileSize: number
+  /** GPS latitude (decimal degrees, negative = south) */
+  latitude?: number
+  /** GPS longitude (decimal degrees, negative = west) */
+  longitude?: number
+  /** GPS altitude in meters */
+  altitude?: number
 }
 
 /** Technical quality assessment (all scores 0-100, higher = better) */
@@ -67,6 +73,13 @@ export interface QualityData {
   brightness: number
   overexposedPct: number
   underexposedPct: number
+}
+
+/** Quality analysis progress event payload (batch pre-analysis) */
+export interface QualityProgress {
+  current: number
+  total: number
+  currentFile: string
 }
 
 /** Archive operation result */
@@ -94,6 +107,9 @@ export interface UndoAction {
   type: 'star' | 'delete' | 'skip'
   index: number
   previousStatus: PhotoStatus
+  /** Multi-select batch undo: original indices + their previous statuses */
+  batchIndices?: number[]
+  batchStatuses?: PhotoStatus[]
 }
 
 /** App page views */

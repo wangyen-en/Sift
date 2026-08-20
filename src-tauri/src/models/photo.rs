@@ -74,6 +74,12 @@ pub struct ExifData {
     pub date_taken: String,
     pub dimensions: Dimensions,
     pub file_size: u64,
+    /// GPS latitude in decimal degrees (negative = south)
+    pub latitude: Option<f64>,
+    /// GPS longitude in decimal degrees (negative = west)
+    pub longitude: Option<f64>,
+    /// GPS altitude in meters
+    pub altitude: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -100,6 +106,15 @@ pub struct QualityData {
     pub overexposed_pct: f64,
     /// Percentage of clipped (underexposed) pixels (0-100)
     pub underexposed_pct: f64,
+}
+
+/// Quality analysis progress event payload (emitted during batch pre-analysis)
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QualityProgress {
+    pub current: usize,
+    pub total: usize,
+    pub current_file: String,
 }
 
 /// Archive operation result

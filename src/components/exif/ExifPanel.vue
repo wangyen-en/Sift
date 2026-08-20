@@ -4,7 +4,8 @@
 // ============================================================
 
 import { ref, watch } from 'vue'
-import { X, Camera, Aperture, Clock, Maximize } from 'lucide-vue-next'
+import { X, Camera, Aperture, Clock, Maximize, MapPin, Copy, ExternalLink } from 'lucide-vue-next'
+import { open as openUrl } from '@tauri-apps/plugin-shell'
 import { useSessionStore } from '@/stores/sessionStore'
 import { useViewStore } from '@/stores/viewStore'
 import { readExif } from '@/services/tauriCommands'
@@ -22,6 +23,34 @@ function formatFileSize(bytes: number): string {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
   return `${(bytes / 1024).toFixed(1)} KB`;
+}
+
+function formatCoord(v: number | undefined, positive: string, negative: string): string {
+  if (v === undefined) return '';
+  const dir = v >= 0 ? positive : negative;
+  return `${Math.abs(v).toFixed(4)}°${dir}`;
+}
+
+function hasGps(): boolean {
+  const d = exifData.value;
+  return !!d && (d.latitude !== undefined || d.longitude !== undefined);
+}
+
+function copyCoords() {
+  const d = exifData.value;
+  // 用 != null 同时排除 null 和 undefined（Rust 的 Option::None 在 JSON 里是 null，不是 undefined）
+  if (!d || d.latitude == null || d.longitude == null) return;
+  const text = `${d.latitude.toFixed(5)}, ${d.longitude.toFixed(5)}`;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).catch(() => {});
+  }
+}
+
+function openInMap() {
+  const d = exifData.value;
+  // 用 != null 同时排除 null 和 undefined
+  if (!d || d.latitude == null || d.longitude == null) return;
+  openUrl(`https://www.google.com/maps?q=${d.latitude},${d.longitude}`);
 }
 
 watch(
@@ -140,6 +169,41 @@ watch(
             </div>
           </div>
         </div>
+
+        <!-- GPS location (only if present) -->
+        <template v-if="hasGps()">
+          <div class="h-px bg-sift-border" />
+          <div class="space-y-2">
+            <div class="flex items-center gap-2 mb-2">
+              <MapPin :size="14" class="text-sift-accent" />
+              <span class="text-xs text-sift-muted uppercase tracking-wider">位置</span>
+            </div>
+            <p class="text-sm text-white font-mono">
+              {{ formatCoord(exifData.latitude, 'N', 'S') }} · {{ formatCoord(exifData.longitude, 'E', 'W') }}
+            </p>
+            <p v-if="exifData.altitude !== undefined" class="text-xs text-sift-muted">
+              海拔 {{ exifData.altitude?.toFixed(1) }} m
+            </p>
+            <div class="flex gap-2 pt-1">
+              <button
+                class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs
+                       bg-white/5 text-sift-muted hover:text-white hover:bg-white/10 transition-colors"
+                @click="copyCoords"
+              >
+                <Copy :size="12" />
+                复制坐标
+              </button>
+              <button
+                class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs
+                       bg-white/5 text-sift-muted hover:text-white hover:bg-white/10 transition-colors"
+                @click="openInMap"
+              >
+                <ExternalLink :size="12" />
+                地图打开
+              </button>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
   </Transition>

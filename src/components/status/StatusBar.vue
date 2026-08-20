@@ -36,6 +36,17 @@ function handleStatusClick(status: PhotoStatus) {
       </span>
     </div>
 
+    <!-- Quality analysis progress (shown only while batch pre-analysis runs) -->
+    <div
+      v-if="session.isAnalyzingQuality"
+      class="flex items-center gap-1.5 text-[11px] text-sift-muted ml-3"
+    >
+      <span class="w-1.5 h-1.5 rounded-full bg-sift-star animate-pulse" />
+      <span class="font-mono">
+        质量分析 {{ session.qualityAnalyzedCount }}/{{ session.qualityTotalCount }}
+      </span>
+    </div>
+
     <!-- Center: Shimmer progress bar -->
     <div class="flex-1 mx-6 relative">
       <div class="h-1 bg-sift-card rounded-full overflow-hidden">

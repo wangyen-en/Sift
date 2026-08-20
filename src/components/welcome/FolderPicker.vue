@@ -238,6 +238,24 @@ function startCulling() {
       </p>
     </div>
 
+    <!-- Pre-analysis toggle (bottom-right, above version badge) -->
+    <div class="absolute bottom-10 right-4 z-10 flex items-center gap-2 select-none">
+      <span class="text-[11px] text-sift-muted">预分析</span>
+      <button
+        type="button"
+        role="switch"
+        :aria-checked="session.preAnalysisEnabled"
+        class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors"
+        :class="session.preAnalysisEnabled ? 'bg-sift-accent' : 'bg-white/15'"
+        @click="session.preAnalysisEnabled = !session.preAnalysisEnabled"
+      >
+        <span
+          class="pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform"
+          :class="session.preAnalysisEnabled ? 'translate-x-4' : 'translate-x-0.5'"
+        />
+      </button>
+    </div>
+
     <!-- Version badge: click to open GitHub release notes -->
     <button
       type="button"

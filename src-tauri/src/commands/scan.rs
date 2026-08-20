@@ -16,9 +16,16 @@ use walkdir::WalkDir;
 
 #[tauri::command]
 pub async fn scan_folder(folder_path: String) -> Result<ScanResult, String> {
-    tokio::task::spawn_blocking(move || scan_folder_sync(&folder_path))
-        .await
-        .map_err(|e| format!("Task join error: {}", e))?
+    tokio::task::spawn_blocking(move || {
+        // Catch panics from RAW preview extraction / EXIF parsing so a single
+        // malformed CR2 can't crash the whole app.
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            scan_folder_sync(&folder_path)
+        }))
+        .map_err(|_| "扫描过程中发生内部错误".to_string())?
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
 }
 
 /// Collect JPG, RAW, and XMP files from a single directory (non-recursive)

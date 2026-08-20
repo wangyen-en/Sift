@@ -13,6 +13,7 @@ import type {
   ExportResult,
   PhotoSource,
   QualityData,
+  QualityProgress,
 } from '@/types'
 
 /** Scan a folder for JPG+RAW pairs */
@@ -65,6 +66,20 @@ export async function readExif(
 /** Analyze technical quality of an image (sharpness / exposure / noise) */
 export async function analyzeQuality(jpgPath: string): Promise<QualityData> {
   return invoke<QualityData>('analyze_quality', { jpgPath })
+}
+
+/** Batch pre-analyze a list of images (cache-aware, emits progress events) */
+export async function analyzeQualityBatch(paths: string[]): Promise<number> {
+  return invoke<number>('analyze_quality_batch', { paths })
+}
+
+/** Listen for batch quality-analysis progress events */
+export function onQualityProgress(
+  callback: (progress: QualityProgress) => void
+) {
+  return listen<QualityProgress>('quality-progress', (event) => {
+    callback(event.payload)
+  })
 }
 
 /** Listen for archive progress events */

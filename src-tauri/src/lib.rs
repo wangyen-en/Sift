@@ -33,6 +33,7 @@ pub fn run() {
             file_actions::copy_image_to_clipboard,
             cache::cleanup_cache,
             quality::analyze_quality,
+            quality::analyze_quality_batch,
             read_exif,
         ])
         .run(tauri::generate_context!())
@@ -47,13 +48,17 @@ fn read_exif(
     raw_path: Option<String>,
     source: Option<String>,
 ) -> Result<models::photo::ExifData, String> {
-    // For RAW-only photos, prefer reading EXIF from the RAW original
-    if source.as_deref() == Some("rawPreview") {
-        if let Some(rp) = &raw_path {
-            if let Ok(exif) = utils::exif::read_exif_data(rp) {
-                return Ok(exif);
+    // Catch panics from EXIF parsing so a malformed file can't crash the app.
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        // For RAW-only photos, prefer reading EXIF from the RAW original
+        if source.as_deref() == Some("rawPreview") {
+            if let Some(rp) = &raw_path {
+                if let Ok(exif) = utils::exif::read_exif_data(rp) {
+                    return Ok(exif);
+                }
             }
         }
-    }
-    utils::exif::read_exif_data(&jpg_path)
+        utils::exif::read_exif_data(&jpg_path)
+    }))
+    .map_err(|_| "读取 EXIF 时发生内部错误".to_string())?
 }

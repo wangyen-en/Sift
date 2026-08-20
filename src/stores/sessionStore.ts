@@ -13,7 +13,7 @@ import {
   type UndoAction,
   type SlideDirection,
 } from '@/types'
-import { scanFolder, generateThumbnails, cleanupCache } from '@/services/tauriCommands'
+import { scanFolder, generateThumbnails, cleanupCache, analyzeQualityBatch, onQualityProgress } from '@/services/tauriCommands'
 
 export const useSessionStore = defineStore('session', () => {
   // ---- State ----
@@ -26,6 +26,19 @@ export const useSessionStore = defineStore('session', () => {
   const slideDirection = ref<SlideDirection>('left')
   const isGeneratingThumbnails = ref(false)
   const markActionCount = ref(0)
+
+  // Quality pre-analysis state
+  const isAnalyzingQuality = ref(false)
+  const qualityAnalyzedCount = ref(0)
+  const qualityTotalCount = ref(0)
+  // 是否启用后台预分析（默认关闭，避免大目录加载时卡顿）
+  const preAnalysisEnabled = ref(false)
+
+  // 监听批量预分析进度事件（store 初始化时注册一次）
+  onQualityProgress((p) => {
+    qualityAnalyzedCount.value = p.current
+    qualityTotalCount.value = p.total
+  })
 
   // ---- Getters ----
   const currentPair = computed(() => pairs.value[currentIndex.value] || null)
@@ -126,6 +139,26 @@ export const useSessionStore = defineStore('session', () => {
           isGeneratingThumbnails.value = false;
         }
       })();
+
+      // 仅在用户开启预分析时，后台预分析质量（避免大目录加载卡顿）
+      if (preAnalysisEnabled.value) {
+        startQualityPreAnalysis();
+      }
+    }
+  }
+
+  /** 后台预分析全部照片质量（缓存感知），进度通过事件更新 */
+  async function startQualityPreAnalysis() {
+    qualityTotalCount.value = pairs.value.length;
+    qualityAnalyzedCount.value = 0;
+    isAnalyzingQuality.value = true;
+    try {
+      const paths = pairs.value.map((p) => p.jpgPath);
+      await analyzeQualityBatch(paths);
+    } catch (e) {
+      console.warn('Quality pre-analysis failed:', e);
+    } finally {
+      isAnalyzingQuality.value = false;
     }
   }
 
@@ -251,10 +284,88 @@ export const useSessionStore = defineStore('session', () => {
     return 'skipped';
   }
 
+  /** Batch star selected photos (multi-select) */
+  function markStarBatch(indices: number[]) {
+    const targets = indices.filter((i) => {
+      const p = pairs.value[i];
+      return p && p.status !== PhotoStatus.Starred;
+    });
+    if (targets.length === 0) return;
+
+    const batchStatuses = targets.map((i) => pairs.value[i].status);
+    for (const i of targets) {
+      pairs.value[i] = { ...pairs.value[i], status: PhotoStatus.Starred };
+    }
+    undoStack.value.push({
+      type: 'star',
+      index: targets[0],
+      previousStatus: PhotoStatus.Unprocessed,
+      batchIndices: targets,
+      batchStatuses,
+    });
+    markActionCount.value += targets.length;
+  }
+
+  /** Batch delete selected photos (multi-select) */
+  function markDeleteBatch(indices: number[]) {
+    const targets = indices.filter((i) => {
+      const p = pairs.value[i];
+      return p && p.status !== PhotoStatus.Deleted;
+    });
+    if (targets.length === 0) return;
+
+    const batchStatuses = targets.map((i) => pairs.value[i].status);
+    for (const i of targets) {
+      pairs.value[i] = { ...pairs.value[i], status: PhotoStatus.Deleted };
+    }
+    undoStack.value.push({
+      type: 'delete',
+      index: targets[0],
+      previousStatus: PhotoStatus.Unprocessed,
+      batchIndices: targets,
+      batchStatuses,
+    });
+    markActionCount.value += targets.length;
+  }
+
+  /** Batch skip selected photos (multi-select) */
+  function markSkipBatch(indices: number[]) {
+    const targets = indices.filter((i) => {
+      const p = pairs.value[i];
+      return p && p.status !== PhotoStatus.Skipped;
+    });
+    if (targets.length === 0) return;
+
+    const batchStatuses = targets.map((i) => pairs.value[i].status);
+    for (const i of targets) {
+      pairs.value[i] = { ...pairs.value[i], status: PhotoStatus.Skipped };
+    }
+    undoStack.value.push({
+      type: 'skip',
+      index: targets[0],
+      previousStatus: PhotoStatus.Unprocessed,
+      batchIndices: targets,
+      batchStatuses,
+    });
+    markActionCount.value += targets.length;
+  }
+
   /** Undo last action */
   function undo() {
     const action = undoStack.value.pop();
     if (!action) return;
+
+    // Batch undo: restore all affected photos at once
+    if (action.batchIndices && action.batchStatuses) {
+      action.batchIndices.forEach((idx, k) => {
+        const pair = pairs.value[idx];
+        if (pair) {
+          pairs.value[idx] = { ...pair, status: action.batchStatuses![k] };
+        }
+      });
+      goTo(action.index);
+      return;
+    }
 
     const pair = pairs.value[action.index];
     if (pair) {
@@ -287,6 +398,10 @@ export const useSessionStore = defineStore('session', () => {
     slideDirection,
     isGeneratingThumbnails,
     markActionCount,
+    isAnalyzingQuality,
+    qualityAnalyzedCount,
+    qualityTotalCount,
+    preAnalysisEnabled,
     // Getters
     currentPair,
     totalCount,
@@ -306,6 +421,9 @@ export const useSessionStore = defineStore('session', () => {
     markStar,
     markDelete,
     markSkip,
+    markStarBatch,
+    markDeleteBatch,
+    markSkipBatch,
     undo,
     resetSession,
   }

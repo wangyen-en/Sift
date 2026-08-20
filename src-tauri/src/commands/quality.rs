@@ -7,18 +7,131 @@
 // All scores are normalized to 0-100 (higher = better).
 // ============================================================
 
-use crate::models::photo::QualityData;
+use crate::models::photo::{QualityData, QualityProgress};
+use crate::utils::quality_cache::{file_fingerprint, QualityCache};
 use image::imageops::FilterType;
 use image::GenericImageView;
+use rayon::prelude::*;
+use rayon::ThreadPoolBuilder;
+use std::path::Path;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use tauri::{Emitter, Manager};
 
 /// Maximum long edge used for analysis (downscaled for speed)
 const MAX_ANALYSIS_DIM: u32 = 1024;
 
+/// Number of worker threads for batch pre-analysis (CPU-bound, keep modest)
+const BATCH_THREADS: usize = 3;
+
+/// Get (or create) the persistent quality cache directory.
+fn cache_dir(app: &tauri::AppHandle) -> Result<QualityCache, String> {
+    let base = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| format!("Failed to get cache dir: {}", e))?;
+    Ok(QualityCache::new(base.join("quality")))
+}
+
 #[tauri::command]
-pub async fn analyze_quality(jpg_path: String) -> Result<QualityData, String> {
-    tokio::task::spawn_blocking(move || analyze_quality_sync(&jpg_path))
-        .await
-        .map_err(|e| format!("Task join error: {}", e))?
+pub async fn analyze_quality(
+    app: tauri::AppHandle,
+    jpg_path: String,
+) -> Result<QualityData, String> {
+    tokio::task::spawn_blocking(move || {
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            analyze_quality_cached(&app, &jpg_path)
+        }))
+        .map_err(|_| "质量分析发生内部错误".to_string())?
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+/// Analyze a single image with persistent-cache lookup + store.
+fn analyze_quality_cached(app: &tauri::AppHandle, path: &str) -> Result<QualityData, String> {
+    let cache = cache_dir(app)?;
+    cache
+        .ensure_dir()
+        .map_err(|e| format!("Cache dir error: {}", e))?;
+
+    // Cache hit — return immediately without re-decoding the image.
+    if let Some((size, mtime)) = file_fingerprint(Path::new(path)) {
+        if let Some(cached) = cache.get(path, size, mtime) {
+            return Ok(cached);
+        }
+    }
+
+    let data = analyze_quality_sync(path)?;
+
+    if let Some((size, mtime)) = file_fingerprint(Path::new(path)) {
+        cache.put(path, size, mtime, &data);
+    }
+
+    Ok(data)
+}
+
+/// Batch pre-analysis command: analyze every path (cache-aware) and emit
+/// `quality-progress` events so the frontend can show progress.
+#[tauri::command]
+pub async fn analyze_quality_batch(
+    app: tauri::AppHandle,
+    paths: Vec<String>,
+) -> Result<usize, String> {
+    tokio::task::spawn_blocking(move || {
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            analyze_batch_sync(&app, paths)
+        }))
+        .map_err(|_| "批量质量分析发生内部错误".to_string())?
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+fn analyze_batch_sync(app: &tauri::AppHandle, paths: Vec<String>) -> Result<usize, String> {
+    let cache = cache_dir(app)?;
+    cache
+        .ensure_dir()
+        .map_err(|e| format!("Cache dir error: {}", e))?;
+
+    let total = paths.len();
+    let done = AtomicUsize::new(0);
+
+    let pool = ThreadPoolBuilder::new()
+        .num_threads(BATCH_THREADS)
+        .build()
+        .map_err(|e| format!("Failed to build thread pool: {}", e))?;
+
+    pool.install(|| {
+        paths.par_iter().for_each(|path| {
+            // Skip if already cached.
+            let mut cached = false;
+            if let Some((size, mtime)) = file_fingerprint(Path::new(path)) {
+                if cache.get(path, size, mtime).is_some() {
+                    cached = true;
+                }
+            }
+
+            if !cached {
+                if let Ok(data) = analyze_quality_sync(path) {
+                    if let Some((size, mtime)) = file_fingerprint(Path::new(path)) {
+                        cache.put(path, size, mtime, &data);
+                    }
+                }
+            }
+
+            let cur = done.fetch_add(1, Ordering::SeqCst) + 1;
+            let _ = app.emit(
+                "quality-progress",
+                QualityProgress {
+                    current: cur,
+                    total,
+                    current_file: path.clone(),
+                },
+            );
+        });
+    });
+
+    Ok(done.load(Ordering::SeqCst))
 }
 
 fn analyze_quality_sync(path: &str) -> Result<QualityData, String> {

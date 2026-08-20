@@ -16,9 +16,16 @@ use std::path::Path;
 pub async fn generate_thumbnails(
     pairs: Vec<ThumbnailInput>,
 ) -> Result<Vec<ThumbnailResult>, String> {
-    tokio::task::spawn_blocking(move || generate_thumbnails_sync(pairs))
-        .await
-        .map_err(|e| format!("Task join error: {}", e))?
+    tokio::task::spawn_blocking(move || {
+        // Catch panics from image decoding so a single malformed preview can't
+        // crash the whole app.
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            generate_thumbnails_sync(pairs)
+        }))
+        .map_err(|_| "缩略图生成发生内部错误".to_string())?
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
 }
 
 fn generate_thumbnails_sync(
@@ -130,10 +137,8 @@ fn process_thumbnail(
     cache_dir: &Path,
     input: &ThumbnailInput,
 ) -> Result<ThumbnailResult, String> {
-    // Cache key v2: previous cache stored sensor-native (unrotated) pixels with
-    // no EXIF, which rendered sideways for portrait shots. v2 stores pixels
-    // already rotated to the upright orientation.
-    let thumb_filename = format!("{}_v2.jpg", input.id);
+    // Cache key v3: bump to 512px thumbnails so the "large" gallery size stays sharp.
+    let thumb_filename = format!("{}_v3.jpg", input.id);
     let thumb_path = cache_dir.join(&thumb_filename);
 
     // Check cache — read dominant color from cached thumbnail (not original)
@@ -160,9 +165,9 @@ fn process_thumbnail(
             // into pixels that we can't strip. Anything under 240px on the
             // short side is treated as suspicious and falls through to Strategy 2.
             let (tw, th) = thumb_img.dimensions();
-            if tw.min(th) >= 240 {
+            if tw.min(th) >= 512 {
                 let rotated = apply_orientation(thumb_img, orientation);
-                let resized = rotated.thumbnail(200, 200);
+                let resized = rotated.thumbnail(512, 512);
                 resized
                     .save(&thumb_path)
                     .map_err(|e| format!("Failed to save EXIF thumbnail: {}", e))?;
@@ -182,7 +187,7 @@ fn process_thumbnail(
         .map_err(|e| format!("Failed to open image: {}", e))?;
 
     let rotated = apply_orientation(img, orientation);
-    let thumb = rotated.thumbnail(200, 200);
+    let thumb = rotated.thumbnail(512, 512);
     thumb
         .save(&thumb_path)
         .map_err(|e| format!("Failed to save thumbnail: {}", e))?;

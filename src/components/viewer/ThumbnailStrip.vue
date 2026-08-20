@@ -58,6 +58,16 @@ function pageRight() {
   container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
 }
 
+/** 鼠标滚轮横向滚动缩略图条 */
+function onWheel(e: WheelEvent) {
+  const container = scrollContainer.value;
+  if (!container) return;
+  // 纵向滚轮（或横向）都映射为横向滚动
+  const delta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+  container.scrollLeft += delta;
+  updateScrollState();
+}
+
 function handleClick(index: number) {
   session.goTo(index);
 }
@@ -159,6 +169,7 @@ onMounted(async () => {
       <div
         ref="scrollContainer"
         class="flex items-center gap-1.5 h-full px-16 overflow-x-auto thumbnail-scroll"
+        @wheel.prevent="onWheel"
       >
         <div
           v-for="(pair, index) in session.pairs"
@@ -234,11 +245,24 @@ onMounted(async () => {
 }
 
 .thumbnail-scroll {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
 }
 
 .thumbnail-scroll::-webkit-scrollbar {
-  display: none;
+  height: 5px;
+}
+
+.thumbnail-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.thumbnail-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+}
+
+.thumbnail-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
 }
 </style>
